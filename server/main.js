@@ -1,15 +1,35 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import fastifyStatic from "@fastify/static";
 
 import { CronJob } from "cron";
 
-let globalRules;
+import { convertFilter, compressRules } from "./libs/abp2dnr.js";
+import { Filter } from "adblockpluscore/lib/filterClasses.js";
+
+import "dotenv/config";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { usersTable } from "./schema.js";
+import { eq } from "drizzle-orm";
+
+import fs from "fs";
+import path from "path";
+
+let globalRules = [];
+let currentPatterns = [];
 
 const URLS = [
   "https://easylist.to/easylist/easylist.txt",
   "https://secure.fanboy.co.nz/fanboy-cookiemonster.txt",
   "https://easylist.to/easylist/easyprivacy.txt",
+  "https://secure.fanboy.co.nz/fanboy-annoyance.txt",
+  "https://easylist.to/easylist/fanboy-social.txt",
 ];
+
+const CUSTOM_PATTERNS_PATH = path.join(process.cwd(), "custom_patterns.txt");
+const CUSTOM_JS_MAP_PATH = path.join(process.cwd(), "customScripts.json");
+
+const db = drizzle(process.env.DATABASE_URL);
 
 const app = Fastify({
   logger: {
@@ -22,6 +42,11 @@ const app = Fastify({
       },
     },
   },
+});
+
+app.register(fastifyStatic, {
+  root: path.join(process.cwd(), "scripts"),
+  prefix: "/scripts/",
 });
 
 await app.register(cors, {
@@ -38,61 +63,112 @@ const fetchList = async (url) => {
   }
 };
 
-const updateRules = async () => {
+const generateRules = async (filters, initID = 1) => {
+  let id = initID;
+  let rules = [];
+
+  for (let filter of filters) {
+    rules.push(await convertFilter(filter));
+  }
+
+  rules = compressRules(rules).flat();
+  for (let rule of rules) {
+    rule.id = id++;
+  }
+
+  return rules;
+};
+
+const initRules = async () => {
   app.log.debug("Start convert rules...");
 
-  const rules = [];
+  const filters = [];
 
   for (const url of URLS) {
-    const urlFilterSet = new Set(globalRules?.map(({ rule }) => rule));
     const listText = await fetchList(url);
-    const lines = listText
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(
-        (line) =>
-          line &&
-          !line.startsWith("!") &&
-          !line.startsWith("[") &&
-          !urlFilterSet.has(line)
-      );
+    const lines = listText.split("\n");
+    currentPatterns.push(...lines);
 
-    let id = rules.length + 1;
+    for (const [index, line] of lines.entries()) {
+      if (index === 0) continue;
 
-    for (let line of lines) {
-      rules.push({
-        id: id++,
-        rule: line,
-      });
+      filters.push(Filter.fromText(Filter.normalize(line)));
     }
   }
 
-  globalRules = rules;
+  const generatedRules = await generateRules(filters);
+  fs.writeFileSync(
+    path.join("../extension", "rules.json"),
+    JSON.stringify(generatedRules, null, 2)
+  );
+
   app.log.debug("Finish convert rules");
 };
 
-app.get("/black-list", async (request, reply) => {
-  try {
-    const oldIds = request.query?.["old-ids"]?.split(",") || [];
-    const data =
-      oldIds.length > 0
-        ? globalRules.filter(({ id }) => !oldIds.includes(id.toString()))
-        : globalRules;
+const updateRules = async () => {
+  app.log.debug("Start update rules");
 
-    return reply.send(data);
-  } catch (err) {
-    app.log.error(err);
-    reply.status(500).send({ error: "Error reading file" });
+  const prevLines = new Set(currentPatterns);
+  const filters = [];
+
+  for (const url of URLS) {
+    const listText = await fetchList(url);
+    const lines = listText.split("\n");
+    const filteredLines = lines.filter((line) => !prevLines.has(line));
+
+    for (const line of filteredLines) {
+      filters.push(Filter.fromText(Filter.normalize(line)));
+    }
   }
+
+  const customText = fs.readFileSync(CUSTOM_PATTERNS_PATH, "utf8");
+  const customLines = customText.split("\n");
+  for (const line of customLines) {
+    filters.push(Filter.fromText(Filter.normalize(line)));
+  }
+
+  const rules = await generateRules(filters, 400_000);
+  globalRules = rules;
+
+  app.log.debug("Finish update rules");
+};
+
+app.post("/black-list", async (request, reply) => {
+  const data = JSON.parse(request.body);
+  const user = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, data.id));
+  if (!user.length) {
+    await db.insert(usersTable).values({
+      id: data.id,
+      install_time: data.install_time,
+      visited_domains_count: data.visited_domains_count,
+      blocked_domains_count: data.blocked_domains_count,
+      allow_domains_count: data.allow_domains_count,
+    });
+  } else {
+    await db
+      .update(usersTable)
+      .set({
+        visited_domains_count: data.visited_domains_count,
+        blocked_domains_count: data.blocked_domains_count,
+        allow_domains_count: data.allow_domains_count,
+      })
+      .where(eq(usersTable.id, data.id));
+  }
+  const customJsData = await fs.promises.readFile(CUSTOM_JS_MAP_PATH, "utf-8");
+  const customJsUrls = JSON.parse(customJsData);
+
+  return reply.send({ rules: globalRules, custom_js_urls: customJsUrls });
 });
 
 const start = async () => {
   try {
-    new CronJob("0 0 * * * *", updateRules, null, true, "UTC");
-    await updateRules();
+    await initRules();
 
     await app.listen({ port: 3000 });
-    app.log.info(`Server listening on http://localhost:3000`);
+    new CronJob("0 0 * * * *", updateRules, null, true, "UTC");
   } catch (err) {
     app.log.error(err);
     process.exit(1);

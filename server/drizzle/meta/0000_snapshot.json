@@ -1,0 +1,62 @@
+{
+  "id": "197a3dff-6a76-483c-82c8-85af16a5d7ef",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "install_time": {
+          "name": "install_time",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "visited_domains_count": {
+          "name": "visited_domains_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "blocked_domains_count": {
+          "name": "blocked_domains_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "allow_domains_count": {
+          "name": "allow_domains_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

@@ -1,0 +1,1 @@
+document.getElementById('consent_modal').remove()

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Custom AdBlock Extension</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        font-family: "Roboto", sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: 0 12px;
+        width: 320px;
+        background: #f5f5f5;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100%;
+      }
+
+      .card {
+        background: #fff;
+        padding: 16px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        width: 100%;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .status {
+        font-weight: 500;
+        font-size: 16px;
+        color: #333;
+      }
+
+      .blocked-count {
+        font-size: 14px;
+        color: #555;
+        margin: 12px 0;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        color: white;
+        background: #6200ea;
+        border: none;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        cursor: pointer;
+        transition: background 0.3s, box-shadow 0.3s;
+      }
+
+      .button:hover {
+        background: #3700b3;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+
+      .button-success {
+        background: #2e7d32;
+      }
+
+      .button-success:hover {
+        background: #1b5e20;
+      }
+
+      .button-danger {
+        background: #d32f2f;
+      }
+
+      .button-danger:hover {
+        background: #b71c1c;
+      }
+
+      .button:active {
+        background: #30009c;
+      }
+
+      .whitelist {
+        margin-top: 12px;
+        text-align: center;
+      }
+
+      .none {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="header">
+        <span class="status" id="statusText">Status</span>
+        <button class="button" id="statusChangeBtn">Switch Status</button>
+      </div>
+      <div class="blocked-count">
+        Visited Domains: <span id="visitedDomains">0</span>
+      </div>
+      <div class="blocked-count">
+        Blocked Domains: <span id="blockedDomains">0</span>
+      </div>
+      <div class="blocked-count">
+        Allowed Domains (whitelist): <span id="whitelistDomains">0</span>
+      </div>
+      <div class="whitelist">
+        <button class="button button-success button-danger" id="addToWhitelist">
+          Add current domain to whitelist
+        </button>
+      </div>
+    </div>
+
+    <script src="./popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,1 @@
+document.getElementsByClassName('bm_cookies')[0].remove()

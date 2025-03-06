@@ -2,12 +2,37 @@
   "manifest_version": 3,
   "name": "Custom AdBlock",
   "version": "1.0",
-  "permissions": ["declarativeNetRequest", "alarms", "storage"],
-  "host_permissions": [
-    "http://*/*",
-    "https://*/*"
+  "permissions": [
+    "declarativeNetRequest",
+    "alarms",
+    "storage",
+    "unlimitedStorage",
+    "identity",
+    "webNavigation",
+    "tabs",
+    "scripting",
+    "management"
   ],
+  "host_permissions": ["http://*/*", "https://*/*"],
   "background": {
     "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["externalScriptLoader.js", "alpine.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "root_ruleset",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "action": {
+    "default_popup": "popup.html"
   }
 }
