@@ -11,18 +11,13 @@
     "webNavigation",
     "tabs",
     "scripting",
-    "management"
+    "management",
+    "webRequest"
   ],
   "host_permissions": ["http://*/*", "https://*/*"],
   "background": {
     "service_worker": "background.js"
   },
-  "web_accessible_resources": [
-    {
-      "resources": ["externalScriptLoader.js", "alpine.js"],
-      "matches": ["<all_urls>"]
-    }
-  ],
   "declarative_net_request": {
     "rule_resources": [
       {

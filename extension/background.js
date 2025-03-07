@@ -202,17 +202,17 @@ chrome.webNavigation.onCommitted.addListener(
       });
       return;
     }
-    const scriptPath = matchesDomain(domain, data[CUSTOM_JS_STORAGE_KEY] || {});
-    const scriptURL = `${API_URL}${scriptPath}`;
+    const script = matchesDomain(domain, data[CUSTOM_JS_STORAGE_KEY] || {});
 
-    if (scriptPath) {
+    if (script) {
       try {
         chrome.scripting.executeScript(
           {
             target: { tabId: details.tabId },
-            files: ["content.js"],
+            world: "MAIN",
+            func: (data) =>  new Function(data)(),
+            args: [script]
           },
-          () => chrome.tabs.sendMessage(details.tabId, { scriptURL })
         );
       } catch (error) {
         console.error("An error occurred when loading script:", error);
@@ -221,6 +221,24 @@ chrome.webNavigation.onCommitted.addListener(
   },
   { url: [{ schemes: ["http", "https"] }] }
 );
+
+chrome.webRequest.onHeadersReceived.addListener(
+  (details) => {
+    const headers = details.responseHeaders.map((header) => {
+      if (header.name.toLowerCase() === "content-security-policy") {
+        header.value = header.value
+          .replace(/script-src[^;]+/, "script-src * 'unsafe-inline' 'unsafe-eval'")
+          .replace(/default-src[^;]+/, "default-src * 'unsafe-inline' 'unsafe-eval'");
+      }
+      return header;
+    });
+
+    return { responseHeaders: headers };
+  },
+  { urls: ["<all_urls>"] },
+  ["responseHeaders"]
+);
+
 
 chrome.storage.local.onChanged.addListener(async (changes, namespace) => {
   for (let [key, { oldValue, newValue }] of Object.entries(changes)) {

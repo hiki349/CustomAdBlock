@@ -134,39 +134,55 @@ const updateRules = async () => {
 };
 
 app.post("/black-list", async (request, reply) => {
-  const data = JSON.parse(request.body);
-  const user = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.id, data.id));
-  if (!user.length) {
-    await db.insert(usersTable).values({
-      id: data.id,
-      install_time: data.install_time,
-      visited_domains_count: data.visited_domains_count,
-      blocked_domains_count: data.blocked_domains_count,
-      allow_domains_count: data.allow_domains_count,
-    });
-  } else {
-    await db
-      .update(usersTable)
-      .set({
+  try {
+    const data = JSON.parse(request.body);
+    const user = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, data.id));
+    if (!user.length) {
+      await db.insert(usersTable).values({
+        id: data.id,
+        install_time: data.install_time,
         visited_domains_count: data.visited_domains_count,
         blocked_domains_count: data.blocked_domains_count,
         allow_domains_count: data.allow_domains_count,
-      })
-      .where(eq(usersTable.id, data.id));
-  }
-  const customJsData = await fs.promises.readFile(CUSTOM_JS_MAP_PATH, "utf-8");
-  const customJsUrls = JSON.parse(customJsData);
+      });
+    } else {
+      await db
+        .update(usersTable)
+        .set({
+          visited_domains_count: data.visited_domains_count,
+          blocked_domains_count: data.blocked_domains_count,
+          allow_domains_count: data.allow_domains_count,
+        })
+        .where(eq(usersTable.id, data.id));
+    }
+    const customJsData = await fs.promises.readFile(
+      CUSTOM_JS_MAP_PATH,
+      "utf-8"
+    );
+    const customJsUrls = JSON.parse(customJsData);
+    for (const [key, filePath] of Object.entries(customJsUrls)) {
+      const fullPath = path.join(process.cwd(), filePath);
+      try {
+        const fileContent = await fs.promises.readFile(fullPath, "utf-8");
+        customJsUrls[key] = fileContent;
+      } catch (err) {
+        app.log.error(`An error occurred when read file ${filePath}: ${err.message}`);
+        customJsUrls[key] = null;
+      }
+    }
 
-  return reply.send({ rules: globalRules, custom_js_urls: customJsUrls });
+    return reply.send({ rules: globalRules, custom_js_urls: customJsUrls });
+  } catch (error) {
+    reply.code(500).send({ error: "Internal Server Error" });
+  }
 });
 
 const start = async () => {
   try {
     await initRules();
-
     await app.listen({ port: 3000 });
     new CronJob("0 0 * * * *", updateRules, null, true, "UTC");
   } catch (err) {
