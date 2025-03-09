@@ -169,7 +169,9 @@ app.post("/black-list", async (request, reply) => {
         const fileContent = await fs.promises.readFile(fullPath, "utf-8");
         customJsUrls[key] = fileContent;
       } catch (err) {
-        app.log.error(`An error occurred when read file ${filePath}: ${err.message}`);
+        app.log.error(
+          `An error occurred when read file ${filePath}: ${err.message}`
+        );
         customJsUrls[key] = null;
       }
     }
@@ -183,6 +185,7 @@ app.post("/black-list", async (request, reply) => {
 const start = async () => {
   try {
     await initRules();
+    await updateRules();
     await app.listen({ port: 3000 });
     new CronJob("0 0 * * * *", updateRules, null, true, "UTC");
   } catch (err) {
