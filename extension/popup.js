@@ -5,9 +5,11 @@ const STORAGE_KEYS = {
 };
 
 const elements = {
-  statusChangeBtn: document.getElementById("statusChangeBtn"),
+  statusToggle: document.getElementById("statusToggle"),
   blockedDomains: document.getElementById("blockedDomains"),
   changeDomainStatusBtn: document.getElementById("changeDomainStatus"),
+  currentDomain: document.getElementById("currentDomain"),
+  footer: document.getElementById("footer"),
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -17,18 +19,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 async function initializeUI() {
-  elements.statusChangeBtn.innerText = (await getStorageValue(ENABLED_APP_KEY))
-    ? "Turn OFF"
-    : "Turn ON";
+  const isEnabled = await getStorageValue(ENABLED_APP_KEY, false);
+  elements.statusToggle.checked = isEnabled;
+  footer.innerText = `v${chrome.runtime.getManifest().version}`
+
   elements.blockedDomains.innerText = await getStorageValue(
     STORAGE_KEYS.blockedDomains,
     0
   );
-  updateChangeDomainStatusUI();
+
+  await updateCurrentDomainInfo();
 }
 
 function setupEventListeners() {
-  elements.statusChangeBtn.addEventListener("click", toggleAppStatus);
+  elements.statusToggle.addEventListener("change", toggleAppStatus);
   elements.changeDomainStatusBtn.addEventListener(
     "click",
     handleDomainStatusToggle
@@ -45,9 +49,8 @@ function observeStorageChanges() {
 }
 
 async function toggleAppStatus() {
-  const currentStatus = await getStorageValue(ENABLED_APP_KEY, false);
-  await chrome.storage.local.set({ [ENABLED_APP_KEY]: !currentStatus });
-  elements.statusChangeBtn.innerText = !currentStatus ? "Turn OFF" : "Turn ON";
+  const newStatus = elements.statusToggle.checked;
+  await chrome.storage.local.set({ [ENABLED_APP_KEY]: newStatus });
 }
 
 async function handleDomainStatusToggle() {
@@ -72,25 +75,29 @@ async function handleDomainStatusToggle() {
   window.close();
 }
 
-async function updateChangeDomainStatusUI() {
+async function updateCurrentDomainInfo() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.url) return;
 
   const url = new URL(tab.url);
+  elements.currentDomain.innerText = url.hostname;
+
+  if (url.hostname === "newtab") {
+    elements.changeDomainStatusBtn.classList.add("none");
+    return;
+  }
+
   const excludedDomains = await getStorageValue(
     EXCLUDED_DOMAINS_STORAGE_KEY,
     []
   );
-  const isBlocked = excludedDomains.some((item) => item === url.hostname);
+  const isExcluded = excludedDomains.some((item) => item === url.hostname);
 
-  elements.changeDomainStatusBtn.classList.toggle(
-    "none",
-    url.hostname === "newtab"
-  );
-  elements.changeDomainStatusBtn.classList.toggle("button-danger", isBlocked);
-  elements.changeDomainStatusBtn.innerText = isBlocked
-    ? "Allow for current domain"
-    : "Disable for current domain";
+  elements.changeDomainStatusBtn.classList.toggle("button-danger", !isExcluded);
+  elements.changeDomainStatusBtn.classList.toggle("button-success", isExcluded);
+  elements.changeDomainStatusBtn.innerText = isExcluded
+    ? "Enable blocking for this domain"
+    : "Disable blocking for this domain";
 }
 
 async function getStorageValue(key, defaultValue = null) {

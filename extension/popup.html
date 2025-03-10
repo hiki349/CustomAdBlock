@@ -5,49 +5,163 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Custom AdBlock Extension</title>
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <style>
       * {
-        font-family: "Roboto", sans-serif;
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: "Inter", sans-serif;
       }
 
       body {
-        margin: 0;
-        padding: 0 12px;
         width: 320px;
-        background: #f5f5f5;
+        background: #f8f9fa;
+        padding: 16px;
+        color: #212529;
+      }
+
+      .container {
         display: flex;
         flex-direction: column;
-        align-items: center;
-        height: 100%;
+        gap: 16px;
       }
 
       .card {
-        background: #fff;
-        padding: 16px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        width: 100%;
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
       }
 
       .header {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        padding-bottom: 14px;
+        border-bottom: 1px solid #e9ecef;
       }
 
-      .status {
-        font-weight: 500;
-        font-size: 16px;
-        color: #333;
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
 
-      .blocked-count {
+      .logo-icon {
+        width: 24px;
+        height: 24px;
+        background-color: #6200ea;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
         font-size: 14px;
-        color: #555;
-        margin: 12px 0;
+      }
+
+      .logo-text {
+        font-weight: 600;
+        font-size: 16px;
+        color: #212529;
+      }
+
+      .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 46px;
+        height: 24px;
+      }
+
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.4s;
+        border-radius: 24px;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.4s;
+        border-radius: 50%;
+      }
+
+      input:checked + .slider {
+        background-color: #6200ea;
+      }
+
+      input:focus + .slider {
+        box-shadow: 0 0 1px #6200ea;
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(22px);
+      }
+
+      .stats-card {
+        background-color: #f1f3f5;
+        border-radius: 8px;
+        padding: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .stats-label {
+        font-size: 14px;
+        color: #495057;
+      }
+
+      .stats-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: #212529;
+        background-color: #6200ea;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 16px;
+      }
+
+      .domain-control {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .current-domain {
+        font-size: 13px;
+        color: #6c757d;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .domain-name {
+        font-weight: 500;
+        color: #212529;
       }
 
       .button {
@@ -60,40 +174,41 @@
         color: white;
         background: #6200ea;
         border: none;
-        border-radius: 4px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
         cursor: pointer;
-        transition: background 0.3s, box-shadow 0.3s;
+        transition: background 0.2s, transform 0.1s;
+        width: 100%;
       }
 
       .button:hover {
-        background: #3700b3;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-      }
-
-      .button-success {
-        background: #2e7d32;
-      }
-
-      .button-success:hover {
-        background: #1b5e20;
-      }
-
-      .button-danger {
-        background: #d32f2f;
-      }
-
-      .button-danger:hover {
-        background: #b71c1c;
+        background: #5000c9;
       }
 
       .button:active {
-        background: #30009c;
+        transform: scale(0.98);
       }
 
-      .whitelist {
-        margin-top: 12px;
-        text-align: center;
+      .button-danger {
+        background: #e03131;
+      }
+
+      .button-danger:hover {
+        background: #c92a2a;
+      }
+
+      .button-success {
+        background: #2b8a3e;
+      }
+
+      .button-success:hover {
+        background: #237032;
+      }
+
+      .footer {
+        display: flex;
+        justify-content: center;
+        font-size: 12px;
+        color: #adb5bd;
       }
 
       .none {
@@ -102,20 +217,36 @@
     </style>
   </head>
   <body>
-    <div class="card">
-      <div class="header">
-        <button class="button" id="statusChangeBtn"></button>
-      </div>
-      <div class="blocked-count">
-        Blocked malicious domains: <span id="blockedDomains">0</span>
-      </div>
-      <div class="whitelist">
-        <button class="button button-danger button-success" id="changeDomainStatus">
-          Disable for current domain
-        </button>
-      </div>
-    </div>
+    <div class="container">
+      <div class="card">
+        <div class="header">
+          <div class="logo">
+            <div class="logo-icon">Ad</div>
+            <div class="logo-text">AdBlocker</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="statusToggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
 
+        <div class="stats-card">
+          <div class="stats-label">Blocked domains</div>
+          <div class="stats-value" id="blockedDomains">0</div>
+        </div>
+
+        <div class="domain-control">
+          <div class="current-domain">
+            Current site: <span class="domain-name" id="currentDomain">-</span>
+          </div>
+          <button class="button" id="changeDomainStatus">
+            Disable for current domain
+          </button>
+        </div>
+      </div>
+
+      <div class="footer" id="footer"></div>
+    </div>
     <script src="./popup.js"></script>
   </body>
 </html>
