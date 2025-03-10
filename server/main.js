@@ -17,6 +17,9 @@ import path from "path";
 
 let globalRules = [];
 let currentPatterns = [];
+let whitelistDomains = [];
+let currentDynamicId = 400_000;
+let currentBlocklistVersion = 0;
 
 const URLS = [
   "https://easylist.to/easylist/easylist.txt",
@@ -79,6 +82,15 @@ const generateRules = async (filters, initID = 1) => {
   return rules;
 };
 
+const convertToWhitelistDomains = (generatedRules = []) => {
+  return generatedRules
+    .filter((rule) => rule.action.type === "allow")
+    .map((rule) =>
+      rule.condition.urlFilter.split("/")[0].replace(/^\|\||\^\*?|\.\*$/g, "")
+    )
+    .filter((domain) => domain !== "");
+};
+
 const initRules = async () => {
   app.log.debug("Start convert rules...");
 
@@ -97,6 +109,8 @@ const initRules = async () => {
   }
 
   const generatedRules = await generateRules(filters);
+  whitelistDomains = convertToWhitelistDomains(generatedRules);
+
   fs.writeFileSync(
     path.join("../extension", "rules.json"),
     JSON.stringify(generatedRules, null, 2)
@@ -115,6 +129,7 @@ const updateRules = async () => {
     const listText = await fetchList(url);
     const lines = listText.split("\n");
     const filteredLines = lines.filter((line) => !prevLines.has(line));
+    currentPatterns.push(...lines);
 
     for (const line of filteredLines) {
       filters.push(Filter.fromText(Filter.normalize(line)));
@@ -123,12 +138,25 @@ const updateRules = async () => {
 
   const customText = fs.readFileSync(CUSTOM_PATTERNS_PATH, "utf8");
   const customLines = customText.split("\n");
-  for (const line of customLines) {
+  const filteredCustomLines = customLines.filter(
+    (line) => !prevLines.has(line)
+  );
+  currentPatterns.push(...filteredCustomLines);
+  for (const line of filteredCustomLines) {
     filters.push(Filter.fromText(Filter.normalize(line)));
   }
 
-  const rules = await generateRules(filters, 400_000);
-  globalRules = rules;
+  const rules = await generateRules(filters, currentDynamicId);
+  currentDynamicId += filters.length;
+  const newWhitelistDomains = convertToWhitelistDomains(rules).filter(
+    (domain) => !whitelistDomains.includes(domain)
+  );
+
+  if (newWhitelistDomains.length && rules.length) {
+    whitelistDomains.push(...newWhitelistDomains);
+    globalRules.push(...rules);
+    currentBlocklistVersion++;
+  }
 
   app.log.debug("Finish update rules");
 };
@@ -136,6 +164,10 @@ const updateRules = async () => {
 app.post("/black-list", async (request, reply) => {
   try {
     const data = JSON.parse(request.body);
+    if (data.current_blocklist_version === currentBlocklistVersion) {
+      return reply.send({ update: false });
+    }
+
     const user = await db
       .select()
       .from(usersTable)
@@ -176,8 +208,15 @@ app.post("/black-list", async (request, reply) => {
       }
     }
 
-    return reply.send({ rules: globalRules, custom_js_urls: customJsUrls });
+    return reply.send({
+      update: true,
+      blocklist_version: currentBlocklistVersion,
+      rules: globalRules,
+      custom_js_urls: customJsUrls,
+      whitelist_domains: whitelistDomains,
+    });
   } catch (error) {
+    app.log.error(error);
     reply.code(500).send({ error: "Internal Server Error" });
   }
 });
@@ -187,7 +226,7 @@ const start = async () => {
     await initRules();
     await updateRules();
     await app.listen({ port: 3000 });
-    new CronJob("0 0 * * * *", updateRules, null, true, "UTC");
+    new CronJob("0 0 0 * * *", updateRules, null, false, "UTC");
   } catch (err) {
     app.log.error(err);
     process.exit(1);

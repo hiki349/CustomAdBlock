@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Custom AdBlock Extension</title>
     <link
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
       rel="stylesheet"
     />
     <style>
@@ -104,21 +104,14 @@
   <body>
     <div class="card">
       <div class="header">
-        <span class="status" id="statusText">Status</span>
-        <button class="button" id="statusChangeBtn">Switch Status</button>
+        <button class="button" id="statusChangeBtn"></button>
       </div>
       <div class="blocked-count">
-        Visited Domains: <span id="visitedDomains">0</span>
-      </div>
-      <div class="blocked-count">
-        Blocked Domains: <span id="blockedDomains">0</span>
-      </div>
-      <div class="blocked-count">
-        Allowed Domains (whitelist): <span id="whitelistDomains">0</span>
+        Blocked malicious domains: <span id="blockedDomains">0</span>
       </div>
       <div class="whitelist">
-        <button class="button button-success button-danger" id="addToWhitelist">
-          Add current domain to whitelist
+        <button class="button button-danger button-success" id="changeDomainStatus">
+          Disable for current domain
         </button>
       </div>
     </div>

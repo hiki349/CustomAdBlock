@@ -1,18 +1,13 @@
 const ENABLED_APP_KEY = "enabled-app-key";
+const EXCLUDED_DOMAINS_STORAGE_KEY = "excluded-domains-storage-key";
 const STORAGE_KEYS = {
-  visitedDomains: "visited-domains",
   blockedDomains: "blocked-domains-count",
-  whitelistDomains: "whitelist-count",
-  whitelist: "whitelist",
 };
 
 const elements = {
-  statusText: document.getElementById("statusText"),
   statusChangeBtn: document.getElementById("statusChangeBtn"),
-  visitedDomains: document.getElementById("visitedDomains"),
   blockedDomains: document.getElementById("blockedDomains"),
-  whitelistDomains: document.getElementById("whitelistDomains"),
-  addToWhitelistBtn: document.getElementById("addToWhitelist"),
+  changeDomainStatusBtn: document.getElementById("changeDomainStatus"),
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -22,40 +17,29 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 async function initializeUI() {
-  elements.statusText.innerText = (await getStorageValue(ENABLED_APP_KEY))
-    ? "Active"
-    : "Disabled";
-  elements.visitedDomains.innerText = await getVisitedDomainsCount();
+  elements.statusChangeBtn.innerText = (await getStorageValue(ENABLED_APP_KEY))
+    ? "Turn OFF"
+    : "Turn ON";
   elements.blockedDomains.innerText = await getStorageValue(
     STORAGE_KEYS.blockedDomains,
     0
   );
-  elements.whitelistDomains.innerText = await getStorageValue(
-    STORAGE_KEYS.whitelistDomains,
-    0
-  );
-  updateWhitelistButtonUI();
+  updateChangeDomainStatusUI();
 }
 
 function setupEventListeners() {
   elements.statusChangeBtn.addEventListener("click", toggleAppStatus);
-  elements.addToWhitelistBtn.addEventListener("click", handleWhitelistToggle);
+  elements.changeDomainStatusBtn.addEventListener(
+    "click",
+    handleDomainStatusToggle
+  );
 }
 
 function observeStorageChanges() {
   chrome.storage.local.onChanged.addListener(async (changes) => {
-    if (changes[STORAGE_KEYS.visitedDomains]) {
-      elements.visitedDomains.innerText = Object.keys(
-        changes[STORAGE_KEYS.visitedDomains].newValue || {}
-      ).length;
-    }
     if (changes[STORAGE_KEYS.blockedDomains]) {
       elements.blockedDomains.innerText =
         changes[STORAGE_KEYS.blockedDomains].newValue;
-    }
-    if (changes[STORAGE_KEYS.whitelistDomains]) {
-      elements.whitelistDomains.innerText =
-        changes[STORAGE_KEYS.whitelistDomains].newValue;
     }
   });
 }
@@ -63,52 +47,53 @@ function observeStorageChanges() {
 async function toggleAppStatus() {
   const currentStatus = await getStorageValue(ENABLED_APP_KEY, false);
   await chrome.storage.local.set({ [ENABLED_APP_KEY]: !currentStatus });
-  elements.statusText.innerText = !currentStatus ? "Active" : "Disabled";
+  elements.statusChangeBtn.innerText = !currentStatus ? "Turn OFF" : "Turn ON";
 }
 
-async function handleWhitelistToggle() {
+async function handleDomainStatusToggle() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.url) return;
 
   const url = new URL(tab.url);
-  const whitelist = await getStorageValue(STORAGE_KEYS.whitelist, []);
-  const isExist = whitelist.some((item) => item?.domain === url.hostname);
+  const excludedDomains = await getStorageValue(
+    EXCLUDED_DOMAINS_STORAGE_KEY,
+    []
+  );
+  const isExist = excludedDomains.some((item) => item === url.hostname);
 
-  const updatedWhitelist = isExist
-    ? whitelist.filter((item) => item?.domain !== url.hostname)
-    : [...whitelist, { id: 500_000 + whitelist.length, domain: url.hostname }];
+  const updatedExcludedDomains = isExist
+    ? excludedDomains.filter((item) => item !== url.hostname)
+    : [...excludedDomains, url.hostname];
 
   await chrome.storage.local.set({
-    [STORAGE_KEYS.whitelist]: updatedWhitelist,
+    [EXCLUDED_DOMAINS_STORAGE_KEY]: updatedExcludedDomains,
   });
   chrome.tabs.reload(tab.id);
   window.close();
 }
 
-async function updateWhitelistButtonUI() {
+async function updateChangeDomainStatusUI() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.url) return;
 
   const url = new URL(tab.url);
-  const whitelist = await getStorageValue(STORAGE_KEYS.whitelist, []);
-  const isBlocked = whitelist.some((item) => item?.domain === url.hostname);
+  const excludedDomains = await getStorageValue(
+    EXCLUDED_DOMAINS_STORAGE_KEY,
+    []
+  );
+  const isBlocked = excludedDomains.some((item) => item === url.hostname);
 
-  elements.addToWhitelistBtn.classList.toggle(
+  elements.changeDomainStatusBtn.classList.toggle(
     "none",
     url.hostname === "newtab"
   );
-  elements.addToWhitelistBtn.classList.toggle("button-danger", isBlocked);
-  elements.addToWhitelistBtn.innerText = isBlocked
-    ? "Remove current domain from whitelist"
-    : "Add current domain to whitelist";
+  elements.changeDomainStatusBtn.classList.toggle("button-danger", isBlocked);
+  elements.changeDomainStatusBtn.innerText = isBlocked
+    ? "Allow for current domain"
+    : "Disable for current domain";
 }
 
 async function getStorageValue(key, defaultValue = null) {
   const storageData = await chrome.storage.local.get([key]);
   return storageData[key] ?? defaultValue;
-}
-
-async function getVisitedDomainsCount() {
-  const domains = await getStorageValue(STORAGE_KEYS.visitedDomains, {});
-  return Object.keys(domains).length;
 }

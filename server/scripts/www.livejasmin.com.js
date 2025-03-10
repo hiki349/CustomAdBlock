@@ -1,1 +1,1 @@
-document.getElementById('consent_modal').remove()
+document.getElementById('consent_modal')?.remove()
