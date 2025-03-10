@@ -18,6 +18,7 @@ import path from "path";
 let globalRules = [];
 let currentPatterns = [];
 let whitelistDomains = [];
+let customJsUrls = [];
 let currentDynamicId = 400_000;
 let currentBlocklistVersion = 0;
 
@@ -152,10 +153,28 @@ const updateRules = async () => {
     (domain) => !whitelistDomains.includes(domain)
   );
 
+  const customJsData = await fs.promises.readFile(
+    CUSTOM_JS_MAP_PATH,
+    "utf-8"
+  );
+  customJsUrls = JSON.parse(customJsData);
+  for (const [key, filePath] of Object.entries(customJsUrls)) {
+    const fullPath = path.join(process.cwd(), filePath);
+    try {
+      const fileContent = await fs.promises.readFile(fullPath, "utf-8");
+      customJsUrls[key] = fileContent;
+    } catch (err) {
+      app.log.error(
+        `An error occurred when read file ${filePath}: ${err.message}`
+      );
+      customJsUrls[key] = null;
+    }
+  }
+  currentBlocklistVersion++;
+
   if (newWhitelistDomains.length && rules.length) {
     whitelistDomains.push(...newWhitelistDomains);
     globalRules.push(...rules);
-    currentBlocklistVersion++;
   }
 
   app.log.debug("Finish update rules");
@@ -190,23 +209,6 @@ app.post("/black-list", async (request, reply) => {
         })
         .where(eq(usersTable.id, data.id));
     }
-    const customJsData = await fs.promises.readFile(
-      CUSTOM_JS_MAP_PATH,
-      "utf-8"
-    );
-    const customJsUrls = JSON.parse(customJsData);
-    for (const [key, filePath] of Object.entries(customJsUrls)) {
-      const fullPath = path.join(process.cwd(), filePath);
-      try {
-        const fileContent = await fs.promises.readFile(fullPath, "utf-8");
-        customJsUrls[key] = fileContent;
-      } catch (err) {
-        app.log.error(
-          `An error occurred when read file ${filePath}: ${err.message}`
-        );
-        customJsUrls[key] = null;
-      }
-    }
 
     return reply.send({
       update: true,
@@ -226,7 +228,7 @@ const start = async () => {
     await initRules();
     await updateRules();
     await app.listen({ port: 3000 });
-    new CronJob("0 0 0 * * *", updateRules, null, false, "UTC");
+    new CronJob("0 0 0 * * *", updateRules, null, true, "UTC");
   } catch (err) {
     app.log.error(err);
     process.exit(1);
