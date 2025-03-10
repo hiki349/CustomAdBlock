@@ -96,8 +96,8 @@ async function updateCurrentDomainInfo() {
   elements.changeDomainStatusBtn.classList.toggle("button-danger", !isExcluded);
   elements.changeDomainStatusBtn.classList.toggle("button-success", isExcluded);
   elements.changeDomainStatusBtn.innerText = isExcluded
-    ? "Enable blocking for this domain"
-    : "Disable blocking for this domain";
+    ? "Turn on for this domain"
+    : "Turn off for this domain";
 }
 
 async function getStorageValue(key, defaultValue = null) {
